@@ -19,7 +19,7 @@
 
 // export default fetchAPI;
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   if (!API_URL) {
