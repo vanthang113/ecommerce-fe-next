@@ -1,4 +1,3 @@
-// // login/page.tsx
 // "use client";
 
 // import { useState } from "react";
@@ -16,13 +15,17 @@
 //     setError("");
 
 //     try {
-//       const res = await fetch("http://localhost:5000/api/auth/login", {
+//       // Sử dụng environment variable NEXT_PUBLIC_API_URL
+//       const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+//       const res = await fetch(`${API_URL}/api/auth/login`, {
 //         method: "POST",
 //         headers: { "Content-Type": "application/json" },
 //         body: JSON.stringify({ email, password }),
 //       });
 
 //       const data = await res.json();
+
 //       if (!res.ok) {
 //         setError(data.message || "Đăng nhập thất bại");
 //         return;
@@ -37,6 +40,7 @@
 //       window.dispatchEvent(new Event("authChange"));
 //       router.push("/");
 //     } catch (err) {
+//       console.error(err);
 //       setError("Lỗi kết nối server");
 //     }
 //   };
@@ -101,6 +105,7 @@
 //     </div>
 //   );
 // }
+
 "use client";
 
 import { useState } from "react";
@@ -118,7 +123,6 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // Sử dụng environment variable NEXT_PUBLIC_API_URL
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
       const res = await fetch(`${API_URL}/api/auth/login`, {
@@ -143,14 +147,12 @@ export default function LoginPage() {
       window.dispatchEvent(new Event("authChange"));
       router.push("/");
     } catch (err) {
-      console.error(err);
       setError("Lỗi kết nối server");
     }
   };
 
   return (
     <div className="flex min-h-screen bg-[#f53d2d]">
-      {/* Banner bên trái */}
       <div className="hidden md:flex flex-1 items-center justify-center">
         <img
           src="/banner/final-sale-banner.png"
@@ -158,7 +160,6 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* Form đăng nhập */}
       <div className="flex items-center justify-center flex-1 bg-white">
         <form
           onSubmit={handleLogin}
@@ -167,6 +168,7 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold mb-6 text-center text-[#f53d2d]">
             Đăng nhập
           </h2>
+
           {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
           <input
@@ -174,7 +176,7 @@ export default function LoginPage() {
             placeholder="Email / Số điện thoại / Tên đăng nhập"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:border-[#f53d2d]"
+            className="w-full p-3 mb-4 border rounded-md"
             required
           />
 
@@ -183,7 +185,7 @@ export default function LoginPage() {
             placeholder="Mật khẩu"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 mb-4 border rounded-md focus:outline-none focus:border-[#f53d2d]"
+            className="w-full p-3 mb-4 border rounded-md"
             required
           />
 
@@ -196,10 +198,7 @@ export default function LoginPage() {
 
           <p className="text-center mt-4 text-gray-600">
             Chưa có tài khoản?{" "}
-            <a
-              href="/auth/register"
-              className="text-[#f53d2d] hover:underline font-semibold"
-            >
+            <a href="/auth/register" className="text-[#f53d2d] underline">
               Đăng ký ngay
             </a>
           </p>
