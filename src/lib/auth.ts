@@ -99,7 +99,7 @@ import fetchAPI from "./api";
 
 // Đăng ký
 export async function registerUser(name: string, email: string, password: string) {
-  return fetchAPI("/api/auth/register", {
+  return fetchAPI("/auth/register", {
     method: "POST",
     body: JSON.stringify({ name, email, password }),
   });
@@ -107,7 +107,7 @@ export async function registerUser(name: string, email: string, password: string
 
 // Đăng nhập User
 export async function loginUser(email: string, password: string) {
-  const data = await fetchAPI("/api/auth/login", {
+  const data = await fetchAPI("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -121,7 +121,7 @@ export async function loginUser(email: string, password: string) {
 
 // Đăng nhập ADMIN (không đụng user)
 export async function loginAdmin(email: string, password: string) {
-  const data = await fetchAPI("/api/auth/login", {
+  const data = await fetchAPI("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
