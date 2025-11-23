@@ -130,7 +130,7 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
-        credentials: "include", // ✅ gửi cookie/JWT nếu dùng
+        // credentials: "include", // ✅ gửi cookie/JWT nếu dùng
       });
 
       const data = await res.json();
