@@ -12,7 +12,8 @@ export const isAdminTokenValid = async (): Promise<boolean> => {
     const token = localStorage.getItem("adminToken");
     if (!token) return false;
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/users`, {
+    // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/users`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-be-next.onrender.com/api"}/users`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
@@ -31,7 +32,8 @@ export const refreshAdminToken = async (): Promise<boolean> => {
     const password = prompt(`Nhập mật khẩu cho ${user.email} để refresh token:`);
     if (!password) return false;
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/login`, {
+    // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/login`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-be-next.onrender.com/api"}/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: user.email, password }),

@@ -25,7 +25,7 @@ export default function useAuth() {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/users/profile`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-be-next.onrender.com/api"}/users/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
