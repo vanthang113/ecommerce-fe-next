@@ -22,11 +22,21 @@ export default function ProductDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
       try {
+        console.log("Fetching product with ID:", id);
         const data = await getProductById(id as string);
+        console.log("Product data received:", {
+          id: data.id,
+          name: data.name,
+          status: data.status,
+          quantity: data.quantity,
+          stock: data.stock
+        });
+        
         setProduct(data);
         if (data.reviews) {
           setReviews(data.reviews);
@@ -34,7 +44,9 @@ export default function ProductDetailPage() {
         
         // Fetch related products
         const products = await getProducts();
-        const related = products.filter((p: any) => p.id !== parseInt(id as string)).slice(0, 4);
+        const related = products
+          .filter((p: any) => p.id !== parseInt(id as string))
+          .slice(0, 4);
         setRelatedProducts(related);
       } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
@@ -45,7 +57,89 @@ export default function ProductDetailPage() {
     if (id) fetchProduct();
   }, [id]);
 
-  const handleAddToCart = () => {
+  // Hàm kiểm tra sản phẩm hết hàng
+  const isOutOfStock = () => {
+    if (!product) return true;
+    
+    // Kiểm tra status
+    if (product.status === 0) return true;
+    
+    // Kiểm tra quantity (nếu có)
+    if (product.quantity !== undefined && product.quantity <= 0) return true;
+    
+    // Kiểm tra stock (nếu có)
+    if (product.stock !== undefined && product.stock <= 0) return true;
+    
+    return false;
+  };
+
+  const handleAddToCart = async () => {
+    if (isOutOfStock()) {
+      alert("Sản phẩm đã hết hàng!");
+      return;
+    }
+
+    if (quantity < 1) {
+      alert("Số lượng phải lớn hơn 0!");
+      return;
+    }
+
+    // Kiểm tra số lượng tồn kho
+    if (product.stock !== undefined && quantity > product.stock) {
+      alert(`Chỉ còn ${product.stock} sản phẩm trong kho!`);
+      setQuantity(product.stock);
+      return;
+    }
+
+    if (product.quantity !== undefined && quantity > product.quantity) {
+      alert(`Chỉ còn ${product.quantity} sản phẩm trong kho!`);
+      setQuantity(product.quantity);
+      return;
+    }
+
+    setAddingToCart(true);
+    try {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: finalPrice,
+        qty: quantity,
+        image: product.images?.[0],
+      });
+      alert("Đã thêm vào giỏ hàng!");
+    } catch (error) {
+      console.error("Lỗi khi thêm vào giỏ hàng:", error);
+      alert("Có lỗi xảy ra khi thêm vào giỏ hàng!");
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (isOutOfStock()) {
+      alert("Sản phẩm đã hết hàng!");
+      return;
+    }
+
+    if (quantity < 1) {
+      alert("Số lượng phải lớn hơn 0!");
+      return;
+    }
+
+    // Kiểm tra số lượng tồn kho
+    if (product.stock !== undefined && quantity > product.stock) {
+      alert(`Chỉ còn ${product.stock} sản phẩm trong kho!`);
+      setQuantity(product.stock);
+      return;
+    }
+
+    if (product.quantity !== undefined && quantity > product.quantity) {
+      alert(`Chỉ còn ${product.quantity} sản phẩm trong kho!`);
+      setQuantity(product.quantity);
+      return;
+    }
+
+    // Thêm vào giỏ hàng và chuyển đến trang thanh toán
     addToCart({
       id: product.id,
       name: product.name,
@@ -53,11 +147,7 @@ export default function ProductDetailPage() {
       qty: quantity,
       image: product.images?.[0],
     });
-  };
-
-  const handleBuyNow = () => {
-    handleAddToCart();
-    // Redirect to checkout
+    
     window.location.href = "/checkout";
   };
 
@@ -138,6 +228,14 @@ export default function ProductDetailPage() {
   const voucherDiscount = calculateVoucherDiscount();
   const finalPrice = product ? Number(product.price) - voucherDiscount : 0;
 
+  // Tính toán số lượng tối đa có thể mua
+  const maxQuantity = product ? 
+    Math.min(
+      product.stock || 999,
+      product.quantity || 999,
+      999
+    ) : 1;
+
   if (loading) return <p className="text-center mt-10">Đang tải...</p>;
   if (!product) return <p className="text-center mt-10">Không tìm thấy sản phẩm</p>;
 
@@ -150,9 +248,8 @@ export default function ProductDetailPage() {
 
       {/* Main Product Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* Left Column - Product Images */}
+        {/* Left Column - Images */}
         <div className="space-y-4">
-          {/* Main Image */}
           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
             <img
               src={product.images?.[selectedImage] || "/placeholder.png"}
@@ -160,44 +257,49 @@ export default function ProductDetailPage() {
               className="w-full h-full object-cover"
             />
           </div>
-          
-          {/* Thumbnail Carousel */}
-          {product.images && product.images.length > 1 && (
+
+          {product.images?.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
-              {product.images.map((image: string, index: number) => (
+              {product.images.map((img: string, index: number) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded border-2 ${
-                    selectedImage === index ? 'border-orange-500' : 'border-gray-200'
+                  className={`w-16 h-16 rounded border-2 ${
+                    selectedImage === index ? "border-orange-500" : "border-gray-200"
                   } overflow-hidden`}
                 >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={img} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Right Column - Product Info */}
+        {/* Right Column */}
         <div className="space-y-6">
-          {/* Product Title */}
+          {/* TITLE */}
           <h1 className="text-2xl font-semibold text-gray-900">{product.name}</h1>
-          
-          {/* Rating and Reviews */}
+
+          {/* STATUS */}
+          <div className="space-y-2">
+            <p className={`text-sm font-medium ${isOutOfStock() ? "text-red-600" : "text-green-600"}`}>
+              {isOutOfStock() ? "🛑 Tình trạng: Hết hàng" : "✅ Còn hàng"}
+            </p>
+            {!isOutOfStock() && (product.stock || product.quantity) && (
+              <p className="text-sm text-blue-600">
+                {`Số lượng có sẵn: ${product.stock || product.quantity}`}
+              </p>
+            )}
+          </div>
+
+          {/* Ratings */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="flex">
-                {[1, 2, 3, 4, 5].map((star) => (
+                {[1, 2, 3, 4, 5].map(star => (
                   <span
                     key={star}
-                    className={`text-lg ${
-                      star <= averageRating ? 'text-orange-500' : 'text-gray-300'
-                    }`}
+                    className={`text-lg ${star <= averageRating ? "text-orange-500" : "text-gray-300"}`}
                   >
                     ★
                   </span>
@@ -206,60 +308,42 @@ export default function ProductDetailPage() {
               <span className="text-sm text-gray-600">{averageRating.toFixed(1)} trên 5</span>
             </div>
             <span className="text-sm text-gray-600">{reviews.length} Đánh Giá</span>
-            <button className="text-sm text-gray-500 hover:underline">Tố cáo</button>
           </div>
 
-          {/* Price */}
+          {/* PRICE */}
           <div className="space-y-2">
             <div className="text-3xl font-bold text-red-600">
-              {finalPrice.toLocaleString('vi-VN')} ₫
+              {finalPrice.toLocaleString("vi-VN")} ₫
             </div>
+
             {voucherDiscount > 0 && (
               <div className="text-lg text-gray-500 line-through">
-                {Number(product.price).toLocaleString('vi-VN')} ₫
+                {Number(product.price).toLocaleString("vi-VN")} ₫
               </div>
             )}
+
             <div className="text-lg text-gray-500 line-through">
-              {Number(product.price * 1.5).toLocaleString('vi-VN')} ₫
-            </div>
-            <div className="flex gap-2">
-              <span className="inline-block bg-red-100 text-red-600 px-2 py-1 rounded text-sm font-medium">
-                -33%
-              </span>
-              {voucherDiscount > 0 && (
-                <span className="inline-block bg-green-100 text-green-600 px-2 py-1 rounded text-sm font-medium">
-                  -{voucherDiscount.toLocaleString('vi-VN')}₫
-                </span>
-              )}
+              {(product.price * 1.5).toLocaleString("vi-VN")} ₫
             </div>
           </div>
 
-          {/* Shipping Info */}
+          {/* SHIPPING */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🚚</span>
-              <span className="font-medium">Vận Chuyển</span>
-            </div>
-            <p className="text-sm text-gray-600">
-              giao hàng nhanh nhất trong 5 ngày, phí giao 0₫
-            </p>
-            <p className="text-sm text-green-600 mt-1">
-              Tặng Voucher 15.000₫ nếu đơn giao sau thời gian trên.
-            </p>
+            <p className="text-sm text-gray-600">giao hàng nhanh nhất trong 5 ngày – phí 0₫</p>
           </div>
 
-          {/* Color Selection */}
-          <div className="space-y-3">
-            <label className="block font-medium">Color</label>
-            <div className="flex gap-2">
-              {['Purple', 'Gray', 'Gold', 'Black', 'Other'].map((color) => (
+          {/* COLOR */}
+          <div>
+            <label className="font-medium">Color</label>
+            <div className="flex gap-2 mt-2">
+              {["Purple", "Gray", "Gold", "Black", "Other"].map(color => (
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
                   className={`px-4 py-2 border rounded ${
-                    selectedColor === color 
-                      ? 'border-orange-500 bg-orange-50' 
-                      : 'border-gray-300 hover:border-gray-400'
+                    selectedColor === color
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-300 hover:border-gray-400"
                   }`}
                 >
                   {color}
@@ -268,72 +352,74 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Voucher Selection */}
-          <div className="space-y-3">
-            <label className="block font-medium">Voucher Giảm Giá</label>
-            <button
-              onClick={() => setShowVoucherModal(true)}
-              className="w-full p-3 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🎫</span>
-                <span className="font-medium">
-                  {selectedVoucher === "" ? "Chọn voucher giảm giá" : 
-                   selectedVoucher === "newuser" ? "Voucher Người Mới" :
-                   selectedVoucher === "freeship" ? "Miễn Phí Vận Chuyển" :
-                   selectedVoucher === "flashsale" ? "Flash Sale" : "Chọn voucher"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {voucherDiscount > 0 && (
-                  <span className="text-sm font-medium text-green-600">
-                    -{voucherDiscount.toLocaleString('vi-VN')}₫
-                  </span>
-                )}
-                <span className="text-lg">›</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Quantity */}
-          <div className="space-y-3">
-            <label className="block font-medium">Số Lượng</label>
-            <div className="flex items-center gap-2">
+          {/* QUANTITY */}
+          <div>
+            <label className="font-medium">Số lượng</label>
+            <div className="flex items-center mt-2 gap-2">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50"
+                disabled={isOutOfStock()}
+                className={`w-8 h-8 border rounded flex items-center justify-center ${
+                  isOutOfStock() ? "bg-gray-100 cursor-not-allowed" : "hover:bg-gray-100"
+                }`}
               >
                 -
               </button>
               <input
                 type="number"
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 h-8 border border-gray-300 rounded text-center"
+                onChange={e => {
+                  const value = Math.max(1, Math.min(maxQuantity, Number(e.target.value) || 1));
+                  setQuantity(value);
+                }}
+                disabled={isOutOfStock()}
                 min="1"
+                max={maxQuantity}
+                className="w-16 h-8 border rounded text-center disabled:bg-gray-100"
               />
               <button
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-50"
+                onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                disabled={isOutOfStock()}
+                className={`w-8 h-8 border rounded flex items-center justify-center ${
+                  isOutOfStock() ? "bg-gray-100 cursor-not-allowed" : "hover:bg-gray-100"
+                }`}
               >
                 +
               </button>
             </div>
+            {!isOutOfStock() && maxQuantity < 999 && (
+              <p className="text-xs text-gray-500 mt-1">
+                Số lượng tối đa: {maxQuantity}
+              </p>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-4">
+          {/* ACTION BUTTONS */}
+          <div className="flex gap-4 mt-4">
             <button
+              disabled={isOutOfStock() || addingToCart}
               onClick={handleAddToCart}
-              className="flex-1 border-2 border-red-500 text-red-500 py-3 rounded-lg font-medium hover:bg-red-50 flex items-center justify-center gap-2"
+              className={`flex-1 border-2 py-3 rounded-lg font-medium flex items-center justify-center gap-2
+                ${isOutOfStock() || addingToCart
+                  ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "border-red-500 text-red-500 hover:bg-red-50 active:bg-red-100"
+                }`}
             >
-              🛒 Thêm Vào Giỏ Hàng
+              {addingToCart ? "Đang xử lý..." : 
+               isOutOfStock() ? "Hết hàng" : 
+               "🛒 Thêm Vào Giỏ Hàng"}
             </button>
+
             <button
+              disabled={isOutOfStock()}
               onClick={handleBuyNow}
-              className="flex-1 bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600"
+              className={`flex-1 py-3 rounded-lg font-medium transition-colors
+                ${isOutOfStock()
+                  ? "bg-gray-400 cursor-not-allowed text-white"
+                  : "bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white"
+                }`}
             >
-              Mua Ngay
+              {isOutOfStock() ? "Hết hàng" : "Mua Ngay"}
             </button>
           </div>
         </div>
@@ -375,6 +461,7 @@ export default function ProductDetailPage() {
             >
               Tất Cả
             </button>
+
             {[5, 4, 3, 2, 1].map((rating) => (
               <button
                 key={rating}
@@ -388,6 +475,7 @@ export default function ProductDetailPage() {
                 {rating} Sao ({reviews.filter(r => r.rating === rating).length})
               </button>
             ))}
+
             <button
               onClick={() => setReviewFilter("with-comment")}
               className={`px-3 py-1 rounded ${
@@ -396,7 +484,7 @@ export default function ProductDetailPage() {
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              Có Bình Luận ({reviews.filter(r => r.comment && r.comment.trim() !== "").length})
+              Có Bình Luận ({reviews.filter(r => r.comment?.trim() !== "").length})
             </button>
           </div>
         </div>
@@ -416,6 +504,8 @@ export default function ProductDetailPage() {
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <h3 className="font-medium mb-3">Đánh giá sản phẩm</h3>
             <div className="space-y-3">
+              
+              {/* Rating Stars */}
               <div className="flex items-center gap-2">
                 <span className="text-sm">Đánh giá:</span>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -430,12 +520,16 @@ export default function ProductDetailPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Comment Box */}
               <textarea
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
                 placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
                 className="w-full border border-gray-300 rounded p-3 h-24 resize-none"
               />
+
+              {/* Submit */}
               <div className="flex gap-2">
                 <button
                   onClick={submitReview}
@@ -467,9 +561,12 @@ export default function ProductDetailPage() {
                       {review.user_name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
+
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-sm">{review.user_name}</span>
+
+                      {/* Rating stars */}
                       <div className="flex">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <span
@@ -483,20 +580,19 @@ export default function ProductDetailPage() {
                         ))}
                       </div>
                     </div>
+
                     <p className="text-sm text-gray-500 mb-2">
                       {new Date(review.created_at).toLocaleDateString('vi-VN')} | 
                       Phân loại hàng: {selectedColor || 'Default'}
                     </p>
+
                     {review.comment && (
                       <p className="text-gray-700 mb-2">{review.comment}</p>
                     )}
+
                     <div className="flex items-center gap-4">
-                      <button className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                        👍 Hữu Ích?
-                      </button>
-                      <button className="text-sm text-gray-500 hover:text-gray-700">
-                        ⋮
-                      </button>
+                      <button className="text-sm text-gray-500 hover:text-gray-700">👍 Hữu ích?</button>
+                      <button className="text-sm text-gray-500 hover:text-gray-700">⋮</button>
                     </div>
                   </div>
                 </div>
@@ -521,173 +617,32 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      {/* Related Products Section */}
-      {relatedProducts.length > 0 && (
-        <div className="border-t pt-8 mt-12">
-          <h2 className="text-2xl font-bold mb-6">SẢN PHẨM LIÊN QUAN</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedProducts.map((relatedProduct) => (
-              <Link key={relatedProduct.id} href={`/products/${relatedProduct.id}`}>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-square bg-gray-100">
-                    <img
-                      src={relatedProduct.images?.[0] || "/placeholder.png"}
-                      alt={relatedProduct.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-medium text-sm mb-2 line-clamp-2">
-                      {relatedProduct.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            className={`text-xs ${
-                              star <= 4 ? 'text-orange-500' : 'text-gray-300'
-                            }`}
-                          >
-                            ★
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-500">(12)</span>
-                    </div>
-                    <div className="text-lg font-bold text-red-600">
-                      {Number(relatedProduct.price).toLocaleString('vi-VN')} ₫
-                    </div>
-                    <div className="text-sm text-gray-500 line-through">
-                      {Number(relatedProduct.price * 1.3).toLocaleString('vi-VN')} ₫
-                    </div>
-                  </div>
+      {/* Related Products */}
+      <div className="border-t pt-8"> 
+        <h2 className="text-2xl font-bold mb-6">SẢN PHẨM LIÊN QUAN</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {relatedProducts.map((related) => (
+            <Link key={related.id} href={`/products/${related.id}`}>
+              <div className="border rounded-lg p-4 hover:shadow-lg transition">
+                <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
+                  <img
+                    src={related.images?.[0] || "/placeholder.png"}
+                    alt={related.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Voucher Modal */}
-      {showVoucherModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowVoucherModal(false)}
-        >
-          <div 
-            className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Chọn Voucher Giảm Giá</h3>
-                <button
-                  onClick={() => setShowVoucherModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ×
-                </button>
+                <h3 className="text-lg font-medium">{related.name}</h3>
+                <p className="text-red-500 font-semibold">
+                  {related.price.toLocaleString()}₫
+                </p>
+                {related.status === 0 && (
+                  <p className="text-xs text-red-600 mt-1">Hết hàng</p>
+                )}
               </div>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    setSelectedVoucher("");
-                    setShowVoucherModal(false);
-                  }}
-                  className={`w-full p-3 border rounded-lg text-left ${
-                    selectedVoucher === "" 
-                      ? 'border-orange-500 bg-orange-50' 
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Không sử dụng voucher</span>
-                    <span className="text-sm text-gray-500">Tiết kiệm 0₫</span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setSelectedVoucher("newuser");
-                    setShowVoucherModal(false);
-                  }}
-                  className={`w-full p-3 border rounded-lg text-left ${
-                    selectedVoucher === "newuser" 
-                      ? 'border-orange-500 bg-orange-50' 
-                      : 'border-gray-300 hover:border-gray-400'
-                  } ${product && Number(product.price) < 500000 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={product ? Number(product.price) < 500000 : true}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium text-green-600">Voucher Người Mới</span>
-                      <p className="text-sm text-gray-600">
-                        Giảm 50.000₫ cho đơn từ 500.000₫
-                        {product && Number(product.price) < 500000 && (
-                          <span className="text-red-500 ml-1">(Chưa đủ điều kiện)</span>
-                        )}
-                      </p>
-                    </div>
-                    <span className="text-sm text-green-600 font-medium">
-                      {product && Number(product.price) >= 500000 ? 'Tiết kiệm 50.000₫' : 'Không áp dụng'}
-                    </span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setSelectedVoucher("freeship");
-                    setShowVoucherModal(false);
-                  }}
-                  className={`w-full p-3 border rounded-lg text-left ${
-                    selectedVoucher === "freeship" 
-                      ? 'border-orange-500 bg-orange-50' 
-                      : 'border-gray-300 hover:border-gray-400'
-                  } ${product && Number(product.price) < 200000 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={product ? Number(product.price) < 200000 : true}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium text-blue-600">Miễn Phí Vận Chuyển</span>
-                      <p className="text-sm text-gray-600">
-                        Miễn phí ship cho đơn từ 200.000₫
-                        {product && Number(product.price) < 200000 && (
-                          <span className="text-red-500 ml-1">(Chưa đủ điều kiện)</span>
-                        )}
-                      </p>
-                    </div>
-                    <span className="text-sm text-blue-600 font-medium">
-                      {product && Number(product.price) >= 200000 ? 'Tiết kiệm 30.000₫' : 'Không áp dụng'}
-                    </span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setSelectedVoucher("flashsale");
-                    setShowVoucherModal(false);
-                  }}
-                  className={`w-full p-3 border rounded-lg text-left ${
-                    selectedVoucher === "flashsale" 
-                      ? 'border-orange-500 bg-orange-50' 
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium text-red-600">Flash Sale</span>
-                      <p className="text-sm text-gray-600">Giảm 20% tối đa 100.000₫</p>
-                    </div>
-                    <span className="text-sm text-red-600 font-medium">Tiết kiệm 100.000₫</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
+            </Link>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

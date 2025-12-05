@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 
+interface Review {
+  rating: number;
+  comment?: string;
+}
+
 interface ProductCardProps {
   product: {
     id: number;
@@ -11,6 +16,7 @@ interface ProductCardProps {
     images?: string[] | string | null;
     salePercent?: number;
     isNew?: boolean;
+    reviews?: Review[];   // ⭐ Nhận từ backend
   };
 }
 
@@ -26,11 +32,19 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const imageUrl = getImageUrl();
 
+  // ⭐ Tính rating từ reviews backend trả về
+  const totalReviews = product.reviews?.length || 0;
+  const averageRating =
+    totalReviews > 0
+      ? product.reviews!.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      : 0;
+
   return (
     <div className="group border rounded-xl p-4 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer">
       <Link href={`/products/${product.id}`}>
         <div>
           <div className="relative w-full h-52 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+
             {product.salePercent && (
               <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md font-bold">
                 -{product.salePercent}%
@@ -81,6 +95,26 @@ export default function ProductCard({ product }: ProductCardProps) {
               {(product.price / (1 - product.salePercent / 100)).toLocaleString()} ₫
             </p>
           )}
+
+          {/* ⭐ Hiển thị Rating + số lượng đánh giá */}
+          <div className="flex items-center gap-1 mt-2">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`text-sm ${
+                    star <= averageRating ? "text-yellow-500" : "text-gray-300"
+                  }`}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+
+            <span className="text-xs text-gray-600 ml-1">
+              ({totalReviews})
+            </span>
+          </div>
         </div>
       </Link>
     </div>
