@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getProductById, getProducts } from "@/lib/products";
-import { addToCart } from "@/lib/cart";
+import { addToCart, getCartItemCount } from "@/lib/cart"; // Sửa import
 import { API_URL } from "@/lib/api";
 import Link from "next/link";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
+
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState("");
-  const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewFilter, setReviewFilter] = useState("all");
@@ -23,24 +24,18 @@ export default function ProductDetailPage() {
   const [reviewComment, setReviewComment] = useState("");
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
 
+  const userToken =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  // Load product and reviews
   useEffect(() => {
     async function fetchProduct() {
       try {
-        console.log("Fetching product with ID:", id);
         const data = await getProductById(id as string);
-        console.log("Product data received:", {
-          id: data.id,
-          name: data.name,
-          status: data.status,
-          quantity: data.quantity,
-          stock: data.stock
-        });
-        
         setProduct(data);
-        if (data.reviews) {
-          setReviews(data.reviews);
-        }
+        setReviews(data.reviews || []);
         
         // Fetch related products
         const products = await getProducts();
@@ -57,23 +52,17 @@ export default function ProductDetailPage() {
     if (id) fetchProduct();
   }, [id]);
 
-  // Hàm kiểm tra sản phẩm hết hàng
+  // Kiểm tra sản phẩm hết hàng
   const isOutOfStock = () => {
     if (!product) return true;
-    
-    // Kiểm tra status
     if (product.status === 0) return true;
-    
-    // Kiểm tra quantity (nếu có)
     if (product.quantity !== undefined && product.quantity <= 0) return true;
-    
-    // Kiểm tra stock (nếu có)
     if (product.stock !== undefined && product.stock <= 0) return true;
-    
     return false;
   };
 
-  const handleAddToCart = async () => {
+  // Hàm thêm vào giỏ hàng và chuyển đến đăng nhập
+  const handleAddToCartAndLogin = () => {
     if (isOutOfStock()) {
       alert("Sản phẩm đã hết hàng!");
       return;
@@ -97,16 +86,79 @@ export default function ProductDetailPage() {
       return;
     }
 
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: finalPrice,
+      qty: quantity,
+      image: product.images?.[0],
+    };
+
+    setAddingToCart(true);
+    setRedirectingToLogin(true);
+    
+    try {
+      // Sử dụng hàm addToCart từ cart.ts
+      addToCart(cartItem);
+      
+      // Hiển thị thông báo và chuyển hướng
+      alert("✅ Đã thêm sản phẩm vào giỏ hàng tạm thời! Đang chuyển đến trang đăng nhập...");
+      
+      // Chuyển hướng đến trang đăng nhập với thông tin đầy đủ
+      const encodedProductName = encodeURIComponent(product.name);
+      setTimeout(() => {
+        router.push(`/auth/login?returnUrl=/products/${id}&addedToCart=true&productId=${product.id}&productName=${encodedProductName}`);
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Lỗi khi thêm vào giỏ hàng:", error);
+      alert("Có lỗi xảy ra khi thêm vào giỏ hàng!");
+      setAddingToCart(false);
+      setRedirectingToLogin(false);
+    }
+  };
+
+  // Hàm thêm vào giỏ hàng (khi đã đăng nhập)
+  const handleAddToCart = async () => {
+    if (!userToken) {
+      handleAddToCartAndLogin();
+      return;
+    }
+
+    if (isOutOfStock()) {
+      alert("Sản phẩm đã hết hàng!");
+      return;
+    }
+
+    if (quantity < 1) {
+      alert("Số lượng phải lớn hơn 0!");
+      return;
+    }
+
+    if (product.stock !== undefined && quantity > product.stock) {
+      alert(`Chỉ còn ${product.stock} sản phẩm trong kho!`);
+      setQuantity(product.stock);
+      return;
+    }
+
+    if (product.quantity !== undefined && quantity > product.quantity) {
+      alert(`Chỉ còn ${product.quantity} sản phẩm trong kho!`);
+      setQuantity(product.quantity);
+      return;
+    }
+
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: finalPrice,
+      qty: quantity,
+      image: product.images?.[0],
+    };
+
     setAddingToCart(true);
     try {
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: finalPrice,
-        qty: quantity,
-        image: product.images?.[0],
-      });
-      alert("Đã thêm vào giỏ hàng!");
+      addToCart(cartItem);
+      alert("✅ Đã thêm vào giỏ hàng!");
     } catch (error) {
       console.error("Lỗi khi thêm vào giỏ hàng:", error);
       alert("Có lỗi xảy ra khi thêm vào giỏ hàng!");
@@ -115,7 +167,14 @@ export default function ProductDetailPage() {
     }
   };
 
+  // Hàm Mua ngay
   const handleBuyNow = () => {
+    if (!userToken) {
+      // Lưu vào localStorage và chuyển đến đăng nhập
+      handleAddToCartAndLogin();
+      return;
+    }
+
     if (isOutOfStock()) {
       alert("Sản phẩm đã hết hàng!");
       return;
@@ -126,7 +185,6 @@ export default function ProductDetailPage() {
       return;
     }
 
-    // Kiểm tra số lượng tồn kho
     if (product.stock !== undefined && quantity > product.stock) {
       alert(`Chỉ còn ${product.stock} sản phẩm trong kho!`);
       setQuantity(product.stock);
@@ -139,22 +197,24 @@ export default function ProductDetailPage() {
       return;
     }
 
-    // Thêm vào giỏ hàng và chuyển đến trang thanh toán
-    addToCart({
+    const cartItem = {
       id: product.id,
       name: product.name,
       price: finalPrice,
       qty: quantity,
       image: product.images?.[0],
-    });
-    
-    window.location.href = "/checkout";
+    };
+
+    // Thêm vào giỏ hàng và chuyển đến checkout
+    addToCart(cartItem);
+    router.push("/checkout");
   };
 
   const submitReview = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       alert('Bạn cần đăng nhập để đánh giá');
+      router.push('/auth/login');
       return;
     }
 
@@ -394,34 +454,96 @@ export default function ProductDetailPage() {
             )}
           </div>
 
+          {/* VOUCHER SECTION */}
+          <div>
+            <label className="font-medium">Voucher</label>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setSelectedVoucher("newuser")}
+                className={`px-3 py-1 border rounded text-sm ${
+                  selectedVoucher === "newuser"
+                    ? "border-green-500 bg-green-50 text-green-700"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                Giảm 50K (ĐH từ 500K)
+              </button>
+              <button
+                onClick={() => setSelectedVoucher("freeship")}
+                className={`px-3 py-1 border rounded text-sm ${
+                  selectedVoucher === "freeship"
+                    ? "border-green-500 bg-green-50 text-green-700"
+                    : "border-gray-300 hover:border-gray-400"
+                }`}
+              >
+                Freeship 30K (ĐH từ 200K)
+              </button>
+            </div>
+            {voucherDiscount > 0 && (
+              <p className="text-sm text-green-600 mt-1">
+                Đã áp dụng voucher: -{voucherDiscount.toLocaleString()}₫
+              </p>
+            )}
+          </div>
+
           {/* ACTION BUTTONS */}
           <div className="flex gap-4 mt-4">
             <button
-              disabled={isOutOfStock() || addingToCart}
+              disabled={isOutOfStock() || addingToCart || redirectingToLogin}
               onClick={handleAddToCart}
               className={`flex-1 border-2 py-3 rounded-lg font-medium flex items-center justify-center gap-2
-                ${isOutOfStock() || addingToCart
+                ${isOutOfStock() || addingToCart || redirectingToLogin
                   ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "border-red-500 text-red-500 hover:bg-red-50 active:bg-red-100"
                 }`}
             >
               {addingToCart ? "Đang xử lý..." : 
+               redirectingToLogin ? "Đang chuyển đến đăng nhập..." :
                isOutOfStock() ? "Hết hàng" : 
                "🛒 Thêm Vào Giỏ Hàng"}
             </button>
 
             <button
-              disabled={isOutOfStock()}
+              disabled={isOutOfStock() || redirectingToLogin}
               onClick={handleBuyNow}
               className={`flex-1 py-3 rounded-lg font-medium transition-colors
-                ${isOutOfStock()
+                ${isOutOfStock() || redirectingToLogin
                   ? "bg-gray-400 cursor-not-allowed text-white"
                   : "bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white"
                 }`}
             >
-              {isOutOfStock() ? "Hết hàng" : "Mua Ngay"}
+              {redirectingToLogin ? "Đang xử lý..." : 
+               isOutOfStock() ? "Hết hàng" : "Mua Ngay"}
             </button>
           </div>
+
+          {/* Thông báo nếu chưa đăng nhập */}
+          {!userToken && !redirectingToLogin && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="text-sm text-yellow-700">
+                <p className="mb-2">
+                  ⚠️ <strong>Lưu ý:</strong> Bạn chưa đăng nhập. Nhấn "Thêm Vào Giỏ Hàng" hoặc "Mua Ngay" để:
+                </p>
+                <ol className="list-decimal ml-5 mt-1 space-y-1">
+                  <li>Tự động lưu sản phẩm vào giỏ hàng tạm thời</li>
+                  <li>Chuyển đến trang đăng nhập</li>
+                  <li>Sản phẩm sẽ tự động được đồng bộ sau khi đăng nhập</li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {/* Thông báo đang chuyển hướng */}
+          {redirectingToLogin && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-blue-700">
+                  Đang chuyển đến trang đăng nhập...
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
