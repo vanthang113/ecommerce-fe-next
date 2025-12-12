@@ -7,7 +7,7 @@ import { createOrder } from "@/lib/order";
 export default function CheckoutPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [region, setRegion] = useState(""); // Tỉnh/Thành phố, Quận/Huyện, Phường/Xã
+  const [region, setRegion] = useState(""); 
   const [addressDetail, setAddressDetail] = useState("");
   const [addressType, setAddressType] = useState<"home" | "office">("home");
   const [isDefault, setIsDefault] = useState(false);
@@ -16,7 +16,6 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 📝 lấy token từ localStorage
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -24,25 +23,29 @@ export default function CheckoutPage() {
     const newErrors: Record<string, string> = {};
     if (!fullName.trim()) newErrors.fullName = "Vui lòng nhập họ và tên";
     if (!phone.trim()) newErrors.phone = "Vui lòng nhập số điện thoại";
-    if (!region.trim()) newErrors.region = "Vui lòng nhập Tỉnh/Thành phố, Quận/Huyện, Phường/Xã";
-    if (!addressDetail.trim()) newErrors.addressDetail = "Vui lòng nhập địa chỉ cụ thể";
+    if (!region.trim())
+      newErrors.region = "Vui lòng nhập Tỉnh/Thành phố, Quận/Huyện, Phường/Xã";
+    if (!addressDetail.trim())
+      newErrors.addressDetail = "Vui lòng nhập địa chỉ cụ thể";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleCheckout = async () => {
-    if (!token) {
-      alert("Bạn cần đăng nhập để thanh toán");
-      router.push("/auth/login");
-      return;
-    }
-
     if (!validate()) {
       alert("Vui lòng điền đầy đủ thông tin địa chỉ");
       return;
     }
 
+    if (!token) {
+      alert("Bạn cần đăng nhập để đặt hàng!");
+      router.push("/auth/login");
+      return;
+    }
+
     setLoading(true);
+
     try {
       const order = await createOrder(
         token,
@@ -56,6 +59,7 @@ export default function CheckoutPage() {
         },
         payment
       );
+
       alert("Đặt hàng thành công!");
       router.push("/account/orders");
     } catch (err) {
@@ -72,8 +76,12 @@ export default function CheckoutPage() {
 
       <div className="space-y-4">
         <div className="bg-white border rounded-lg p-4 shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Địa chỉ mới (dùng thông tin trước sắp nhập)</h2>
-          <p className="text-sm text-gray-500 mb-4">Để đặt hàng, vui lòng thêm địa chỉ nhận hàng</p>
+          <h2 className="text-lg font-semibold mb-3">
+            Địa chỉ mới (dùng thông tin trước sắp nhập)
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Để đặt hàng, vui lòng thêm địa chỉ nhận hàng
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -82,19 +90,28 @@ export default function CheckoutPage() {
                 placeholder="Họ và tên"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className={`w-full border p-3 rounded ${errors.fullName ? "border-red-500" : ""}`}
+                className={`w-full border p-3 rounded ${
+                  errors.fullName ? "border-red-500" : ""
+                }`}
               />
-              {errors.fullName && <p className="text-red-600 text-sm mt-1">{errors.fullName}</p>}
+              {errors.fullName && (
+                <p className="text-red-600 text-sm mt-1">{errors.fullName}</p>
+              )}
             </div>
+
             <div>
               <input
                 type="tel"
                 placeholder="Số điện thoại"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className={`w-full border p-3 rounded ${errors.phone ? "border-red-500" : ""}`}
+                className={`w-full border p-3 rounded ${
+                  errors.phone ? "border-red-500" : ""
+                }`}
               />
-              {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone}</p>}
+              {errors.phone && (
+                <p className="text-red-600 text-sm mt-1">{errors.phone}</p>
+              )}
             </div>
           </div>
 
@@ -104,9 +121,13 @@ export default function CheckoutPage() {
               placeholder="Tỉnh/ Thành phố, Quận/Huyện, Phường/Xã"
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              className={`w-full border p-3 rounded ${errors.region ? "border-red-500" : ""}`}
+              className={`w-full border p-3 rounded ${
+                errors.region ? "border-red-500" : ""
+              }`}
             />
-            {errors.region && <p className="text-red-600 text-sm mt-1">{errors.region}</p>}
+            {errors.region && (
+              <p className="text-red-600 text-sm mt-1">{errors.region}</p>
+            )}
           </div>
 
           <div className="mt-3">
@@ -115,9 +136,15 @@ export default function CheckoutPage() {
               placeholder="Địa chỉ cụ thể"
               value={addressDetail}
               onChange={(e) => setAddressDetail(e.target.value)}
-              className={`w-full border p-3 rounded ${errors.addressDetail ? "border-red-500" : ""}`}
+              className={`w-full border p-3 rounded ${
+                errors.addressDetail ? "border-red-500" : ""
+              }`}
             />
-            {errors.addressDetail && <p className="text-red-600 text-sm mt-1">{errors.addressDetail}</p>}
+            {errors.addressDetail && (
+              <p className="text-red-600 text-sm mt-1">
+                {errors.addressDetail}
+              </p>
+            )}
           </div>
 
           <div className="mt-4">
@@ -132,14 +159,23 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => setAddressType("home")}
-                className={`px-3 py-2 rounded border ${addressType === "home" ? "bg-gray-800 text-white" : "bg-white"}`}
+                className={`px-3 py-2 rounded border ${
+                  addressType === "home"
+                    ? "bg-gray-800 text-white"
+                    : "bg-white"
+                }`}
               >
                 Nhà Riêng
               </button>
+
               <button
                 type="button"
                 onClick={() => setAddressType("office")}
-                className={`px-3 py-2 rounded border ${addressType === "office" ? "bg-gray-800 text-white" : "bg-white"}`}
+                className={`px-3 py-2 rounded border ${
+                  addressType === "office"
+                    ? "bg-gray-800 text-white"
+                    : "bg-white"
+                }`}
               >
                 Văn Phòng
               </button>
@@ -147,13 +183,22 @@ export default function CheckoutPage() {
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <input id="isDefault" type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
-            <label htmlFor="isDefault" className="text-sm">Đặt làm địa chỉ mặc định</label>
+            <input
+              id="isDefault"
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
+            <label htmlFor="isDefault" className="text-sm">
+              Đặt làm địa chỉ mặc định
+            </label>
           </div>
         </div>
 
         <div>
-          <label className="block font-semibold mb-1">Phương thức thanh toán</label>
+          <label className="block font-semibold mb-1">
+            Phương thức thanh toán
+          </label>
           <select
             className="w-full border p-2 rounded"
             value={payment}

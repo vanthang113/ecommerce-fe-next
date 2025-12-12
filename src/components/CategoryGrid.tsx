@@ -47,7 +47,7 @@ export default function CategoryGrid() {
   // Function để tìm icon cho category
   const getCategoryIcon = (categoryName: string) => {
     const normalizedName = categoryName.toLowerCase().trim();
-    return categoryIconMap[normalizedName] || "/categories/laptop.webp"; // fallback về laptop icon
+    return categoryIconMap[normalizedName] || "/categories/PC.webp"; // fallback về laptop icon
   };
 
   if (loading) {
@@ -81,7 +81,7 @@ export default function CategoryGrid() {
               onError={(e) => {
                 console.log(`Error loading image for category: ${cat.name}`);
                 // Fallback to a default icon
-                e.currentTarget.src = "/categories/laptop.webp";
+                e.currentTarget.src = "/categories/PC.webp";
               }}
             />
           </div>

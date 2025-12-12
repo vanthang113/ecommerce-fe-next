@@ -1,3 +1,4 @@
+// types/voucher.ts
 export interface Voucher {
   id: string;
   code: string;

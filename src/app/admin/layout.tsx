@@ -58,7 +58,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: "Users", icon: <FaUsers />, href: "/admin/users" },
     { label: "Reviews", icon: <FaStar />, href: "/admin/reviews" },
     { label: "Charts", icon: <FaChartBar />, href: "/admin/charts" },
-    { label: "Test Tools", icon: <FaTools />, href: "/admin/test-tools" },
   ];
 
   return (

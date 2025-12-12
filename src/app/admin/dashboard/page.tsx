@@ -38,12 +38,6 @@ export default function DashboardPage() {
         >
           Biểu đồ đơn hàng
         </Link>
-        <Link
-          href="/admin/test-tools"
-          className="p-6 bg-yellow-600 text-white rounded-lg shadow hover:bg-yellow-700"
-        >
-          Test Tools
-        </Link>
       </div>
     </div>
   );

@@ -8,3 +8,4 @@ export async function getProducts(queryParams?: string) {
 export async function getProductById(id: string) {
   return fetchAPI(`/products/${id}`, { method: "GET" });
 }
+
